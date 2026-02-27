@@ -133,7 +133,7 @@ int main(void)
     clock_gettime(CLOCK_MONOTONIC, &end);
 
     real_time = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1000000000.0;
-    printf("\nTEMPO REAL (PARALLEL): %f SEGUNDOS\n", real_time);
+    printf("\nTEMPO REAL (PARALLEL): %f SEGUNDOS\nSOMA: %d\n", real_time, arr_p->sum);
 
     clock_gettime(CLOCK_MONOTONIC, &start);
     for (long i = 0; i < V_SIZE; i++)
@@ -147,7 +147,7 @@ int main(void)
     clock_gettime(CLOCK_MONOTONIC, &end);
 
     real_time = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1000000000.0;
-    printf("\nTEMPO REAL (SEQUENTIAL): %f SEGUNDOS\n", real_time);
+    printf("\nTEMPO REAL (SEQUENTIAL): %f SEGUNDOS\nSOMA: %d\n", real_time, arr_s->sum);
 
     free(parallel);
     free(sequential);
