@@ -33,7 +33,7 @@ int GetBufferPosition(int empty)
     }
 }
 
-void wait(Semaforo *s)
+void semaforo_wait(Semaforo *s)
 {
     pthread_mutex_lock(&s->mutex);
     while (s->valor <= 0)
@@ -44,7 +44,7 @@ void wait(Semaforo *s)
     pthread_mutex_unlock(&s->mutex);
 }
 
-void signal(Semaforo *s)
+void semaforo_signal(Semaforo *s)
 {
     pthread_mutex_lock(&s->mutex);
     s->valor++;
@@ -56,13 +56,13 @@ void *Produtor(void *arg)
 {
     while(running){
         int data = rand() % 8 + 1;
-        wait(&vazio);
-        wait(&mutex);
+        semaforo_wait(&vazio);
+        semaforo_wait(&mutex);
         buffer[in] = data;
         in = (in + 1) % BUFFER_SIZE;
         printf("\nDado produzido: %d", data);
-        signal(&mutex);
-        signal(&cheio);
+        semaforo_signal(&mutex);
+        semaforo_signal(&cheio);
     }
     return NULL;
 }
@@ -70,12 +70,12 @@ void *Produtor(void *arg)
 void *Consumidor(void *arg)
 {
     while(running){
-        wait(&cheio);
-        wait(&mutex);
+        semaforo_wait(&cheio);
+        semaforo_wait(&mutex);
         int data = buffer[out];
         out = (out + 1) % BUFFER_SIZE;
-        signal(&mutex);
-        signal(&vazio);
+        semaforo_signal(&mutex);
+        semaforo_signal(&vazio);
         printf("\nDado consumido: %d", data);
     }
     return NULL;
