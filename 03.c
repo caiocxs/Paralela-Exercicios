@@ -1,108 +1,89 @@
+#include <pthread.h>
+#include <semaphore.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <pthread.h>
-#include <unistd.h>
 #include <time.h>
-#include <stdint.h>
-#include "semaforo.h"
-#include "fifo.h"
+#include <unistd.h>
 
 pthread_t *homens;
 pthread_t *mulheres;
 
-Semaforo MulherDisponivel;
-Semaforo HomemDisponivel;
+sem_t sem_mulher;
+sem_t sem_homem;
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
-next_link idsM, idsH;
-int idH = 1, idM = 1;
-int running = 1;
+int id_mulher_atual = -1;
+int id_homem_atual = -1;
 
-void *ChegarFestaHomem(void *arg)
-{
-    while (running)
-    {
-        int idHAtual = idH;
-        idH++;
-        printf("\nChegou um homem id: %d!", idHAtual);
-        idsH = fifo_add(&idsH, idHAtual);
-        semaforo_signal(&HomemDisponivel);
-        semaforo_wait(&MulherDisponivel);
-        next_link vitrineM = fifo_remove(&idsM);
-        printf("\nFoi feito um casal! Com: M: %d e H: %d", vitrineM->item, idHAtual);
-    }
+void *ChegarHomem(void *arg) {
+    int id = (int)(intptr_t)arg;
+    printf("\nChegou um homem! %d", id);
+
+    pthread_mutex_lock(&mutex);
+
+    id_homem_atual = id;
+    sem_post(&sem_homem);
+    sem_wait(&sem_mulher);
+
+    printf("\nHomem %d formou casal com Mulher %d!", id, id_mulher_atual);
+
+    pthread_mutex_unlock(&mutex);
     return NULL;
 }
 
-void *ChegarFestaMulher(void *arg)
-{
-    while (running)
-    {
-        int idMAtual = idM;
-        idM++;
-        printf("\nChegou uma mulher id: %d!", idMAtual);
-        idsM = fifo_add(&idsM, idMAtual);
-        semaforo_signal(&MulherDisponivel);
-        semaforo_wait(&HomemDisponivel);
-        next_link vitrineH = fifo_remove(&idsH);
-        printf("\nFoi feito um casal! Com: M: %d e H: %d", idMAtual, vitrineH->item);
-    }
+void *ChegarMulher(void *arg) {
+    int id = (int)(intptr_t)arg;
+    printf("\nChegou uma mulher! %d", id);
+
+    sem_wait(&sem_homem);
+    id_mulher_atual = id;
+    int id_h = id_homem_atual;
+    sem_post(&sem_mulher);
+
     return NULL;
 }
 
-void ChegarAlguem()
-{
+void ChegarAlguem() {
     int i = 0;
     int h = 0;
     int m = 0;
-    while (i < 50)
-    {
-        if (rand() % 2)
-        {
-            pthread_create(&mulheres[m], NULL, ChegarFestaMulher, NULL);
+    while (i < 50) {
+        if (rand() % 2) {
+            pthread_create(&mulheres[m], NULL, ChegarMulher, (void *)(intptr_t)(m + 1));
             m++;
-        }
-        else
-        {
-            pthread_create(&homens[h], NULL, ChegarFestaHomem, NULL);
+        } else {
+            pthread_create(&homens[h], NULL, ChegarHomem, (void *)(intptr_t)(h + 1));
             h++;
         }
         i++;
     }
 }
 
-void Sincronizar()
-{
-    int i = 0;
-    for (int i = 0; i < idH - 1; i++)
-    {
+void Sincronizar() {
+    for (int i = 0; i < 50; i++) {
+        if (homens[i] == 0)
+            continue;
         pthread_join(homens[i], NULL);
     }
 
-    for (int i = 0; i < idM - 1; i++)
-    {
+    for (int i = 0; i < 50; i++) {
+        if (mulheres[i] == 0)
+            continue;
         pthread_join(mulheres[i], NULL);
     }
 }
 
-int main(void)
-{
+int main(void) {
     srand(time(NULL));
 
-    semaforo_init(&HomemDisponivel, 0);
-    semaforo_init(&MulherDisponivel, 0);
+    sem_init(&sem_mulher, 0, 0);
+    sem_init(&sem_homem, 0, 0);
 
-    homens = (pthread_t *)malloc(sizeof(pthread_t) * 40);
-    mulheres = (pthread_t *)malloc(sizeof(pthread_t) * 40);
-
-    idsH = NULL;
-    idsM = NULL;
-
-    printf("ESTOU VIVO");
+    homens = (pthread_t *)calloc(sizeof(pthread_t) * 50, 1);
+    mulheres = (pthread_t *)calloc(sizeof(pthread_t) * 50, 1);
 
     ChegarAlguem();
-
-    sleep(0.5f);
-    running = 0;
 
     Sincronizar();
 
